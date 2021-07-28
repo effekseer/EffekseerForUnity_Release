@@ -1,0 +1,1 @@
+# EffekseerForUnity_Release
