@@ -15,6 +15,6 @@ https://github.com/effekseer/EffekseerForUnity_Release.git?path=Assets/Effekseer
 ## Pre version
 
 ```
-https://github.com/effekseer/EffekseerForUnity_Release.git?path=Assets/Effekseer#16x_pre
+https://github.com/effekseer/EffekseerForUnity_Release.git?path=Assets/Effekseer#16x_pre2
 ```
 
