@@ -937,42 +937,42 @@ namespace Effekseer.Internal
 
 		public EffekseerRendererUnity()
 		{
-			var fixedShader = EffekseerSettings.Instance.fixedShader;
+			var fixedShader = EffekseerDependentAssets.Instance.fixedShader;
 #if UNITY_EDITOR
 			if (fixedShader == null)
 			{
-				EffekseerSettings.AssignAssets();
+				EffekseerDependentAssets.AssignAssets();
 			}
-			fixedShader = EffekseerSettings.Instance.fixedShader;
+			fixedShader = EffekseerDependentAssets.Instance.fixedShader;
 #endif
 
-			GetMaterialCollection(Plugin.RendererMaterialType.Unlit, false).Shader = EffekseerSettings.Instance.fixedShader;
-			GetMaterialCollection(Plugin.RendererMaterialType.Unlit, true).Shader = EffekseerSettings.Instance.fixedShader;
+			GetMaterialCollection(Plugin.RendererMaterialType.Unlit, false).Shader = EffekseerDependentAssets.Instance.fixedShader;
+			GetMaterialCollection(Plugin.RendererMaterialType.Unlit, true).Shader = EffekseerDependentAssets.Instance.fixedShader;
 			GetMaterialCollection(Plugin.RendererMaterialType.Unlit, true).Keywords = new string[] { "_MODEL_" };
 
-			GetMaterialCollection(Plugin.RendererMaterialType.BackDistortion, false).Shader = EffekseerSettings.Instance.fixedShader;
+			GetMaterialCollection(Plugin.RendererMaterialType.BackDistortion, false).Shader = EffekseerDependentAssets.Instance.fixedShader;
 			GetMaterialCollection(Plugin.RendererMaterialType.BackDistortion, false).Keywords = new string[] { "ENABLE_DISTORTION" };
-			GetMaterialCollection(Plugin.RendererMaterialType.BackDistortion, true).Shader = EffekseerSettings.Instance.fixedShader;
+			GetMaterialCollection(Plugin.RendererMaterialType.BackDistortion, true).Shader = EffekseerDependentAssets.Instance.fixedShader;
 			GetMaterialCollection(Plugin.RendererMaterialType.BackDistortion, true).Keywords = new string[] { "_MODEL_", "ENABLE_DISTORTION" };
 
-			GetMaterialCollection(Plugin.RendererMaterialType.Lit, false).Shader = EffekseerSettings.Instance.fixedShader;
+			GetMaterialCollection(Plugin.RendererMaterialType.Lit, false).Shader = EffekseerDependentAssets.Instance.fixedShader;
 			GetMaterialCollection(Plugin.RendererMaterialType.Lit, false).Keywords = new string[] { "_MODEL_" };
-			GetMaterialCollection(Plugin.RendererMaterialType.Lit, true).Shader = EffekseerSettings.Instance.fixedShader;
+			GetMaterialCollection(Plugin.RendererMaterialType.Lit, true).Shader = EffekseerDependentAssets.Instance.fixedShader;
 			GetMaterialCollection(Plugin.RendererMaterialType.Lit, true).Keywords = new string[] { "_MODEL_", "ENABLE_LIGHTING" };
 
-			GetMaterialCollection(Plugin.RendererMaterialType.AdvancedUnlit, false).Shader = EffekseerSettings.Instance.fixedShader;
+			GetMaterialCollection(Plugin.RendererMaterialType.AdvancedUnlit, false).Shader = EffekseerDependentAssets.Instance.fixedShader;
 			GetMaterialCollection(Plugin.RendererMaterialType.AdvancedUnlit, false).Keywords = new string[] { "_ADVANCED_" };
-			GetMaterialCollection(Plugin.RendererMaterialType.AdvancedUnlit, true).Shader = EffekseerSettings.Instance.fixedShader;
+			GetMaterialCollection(Plugin.RendererMaterialType.AdvancedUnlit, true).Shader = EffekseerDependentAssets.Instance.fixedShader;
 			GetMaterialCollection(Plugin.RendererMaterialType.AdvancedUnlit, true).Keywords = new string[] { "_MODEL_", "_ADVANCED_" };
 
-			GetMaterialCollection(Plugin.RendererMaterialType.AdvancedBackDistortion, false).Shader = EffekseerSettings.Instance.fixedShader;
+			GetMaterialCollection(Plugin.RendererMaterialType.AdvancedBackDistortion, false).Shader = EffekseerDependentAssets.Instance.fixedShader;
 			GetMaterialCollection(Plugin.RendererMaterialType.AdvancedBackDistortion, false).Keywords = new string[] { "ENABLE_DISTORTION", "_ADVANCED_" };
-			GetMaterialCollection(Plugin.RendererMaterialType.AdvancedBackDistortion, true).Shader = EffekseerSettings.Instance.fixedShader;
+			GetMaterialCollection(Plugin.RendererMaterialType.AdvancedBackDistortion, true).Shader = EffekseerDependentAssets.Instance.fixedShader;
 			GetMaterialCollection(Plugin.RendererMaterialType.AdvancedBackDistortion, true).Keywords = new string[] { "_MODEL_", "ENABLE_DISTORTION", "_ADVANCED_" };
 
-			GetMaterialCollection(Plugin.RendererMaterialType.AdvancedLit, false).Shader = EffekseerSettings.Instance.fixedShader;
+			GetMaterialCollection(Plugin.RendererMaterialType.AdvancedLit, false).Shader = EffekseerDependentAssets.Instance.fixedShader;
 			GetMaterialCollection(Plugin.RendererMaterialType.AdvancedLit, false).Keywords = new string[] { "ENABLE_LIGHTING", "_ADVANCED_" };
-			GetMaterialCollection(Plugin.RendererMaterialType.AdvancedLit, true).Shader = EffekseerSettings.Instance.fixedShader;
+			GetMaterialCollection(Plugin.RendererMaterialType.AdvancedLit, true).Shader = EffekseerDependentAssets.Instance.fixedShader;
 			GetMaterialCollection(Plugin.RendererMaterialType.AdvancedLit, true).Keywords = new string[] { "_MODEL_", "ENABLE_LIGHTING", "_ADVANCED_" };
 		}
 
@@ -1391,6 +1391,9 @@ namespace Effekseer.Internal
 
 				ApplyAdvancedParameter(parameter, prop);
 			}
+
+			ApplyColorSpace(prop);
+
 			prop.SetVector("fEmissiveScaling", new Vector4(parameter.EmissiveScaling, 0.0f, 0.0f, 0.0f));
 
 			ApplyReconstructionParameter(parameter, prop);
@@ -1535,6 +1538,9 @@ namespace Effekseer.Internal
 				{
 					ApplyAdvancedParameter(parameter, prop);
 				}
+
+				ApplyColorSpace(prop);
+
 				prop.SetVector("fEmissiveScaling", new Vector4(parameter.EmissiveScaling, 0.0f, 0.0f, 0.0f));
 
 				ApplyReconstructionParameter(parameter, prop);
@@ -1785,6 +1791,11 @@ namespace Effekseer.Internal
 			prop.SetVector("fFalloffEndColor", parameter.FalloffParam.EndColor);
 			prop.SetVector("fEdgeColor", parameter.EdgeParams.Color);
 			prop.SetVector("fEdgeParameter", new Vector4(parameter.EdgeParams.Threshold, parameter.EdgeParams.ColorScaling, 0.0f, 0.0f));
+		}
+
+		void ApplyColorSpace(MaterialPropertyBlock prop)
+		{
+			prop.SetFloat("convertColorSpace", EffekseerSettings.Instance.MaintainGammaColorInLinearSpace ? 1.0f : 0.0f);
 		}
 
 		void ApplyReconstructionParameter(in Plugin.UnityRenderParameter parameter, MaterialPropertyBlock prop)

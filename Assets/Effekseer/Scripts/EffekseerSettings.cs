@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 #if UNITY_EDITOR
@@ -33,6 +34,14 @@ namespace Effekseer
 		/// </summary>
 		[SerializeField]
 		public bool renderAsPostProcessingStack = false;
+
+		/// <summary xml:lang="en">
+		/// Whether to maintain gamma color in linear space.
+		/// </summary>
+		/// <summary xml:lang="ja">
+		/// リニアスペースでガンマカラーを維持するかどうか
+		/// </summary>
+		public bool MaintainGammaColorInLinearSpace = true;
 
 		/// <summary>
 		/// 
@@ -147,25 +156,6 @@ namespace Effekseer
 		public float distortionBufferScale = 1.0f;
 		*/
 
-		[SerializeField]
-		public Shader texture2DArrayBlitMaterial = null;
-
-		[SerializeField]
-		public Shader texture2DBlitMaterial = null;
-
-		[SerializeField]
-		public Shader grabDepthShader = null;
-
-		[SerializeField]
-		public Shader fixedShader = null;
-
-		/// <summary>
-		/// A shader to avoid a unity bug
-		/// </summary>
-		[SerializeField]
-		public Shader fakeMaterial = null;
-
-
 		#region Network
 		/// <summary xml:lang="en">
 		/// A network port to edit effects from remote
@@ -195,13 +185,35 @@ namespace Effekseer
 				{
 					return instance;
 				}
-				instance = Resources.Load<EffekseerSettings>("EffekseerSettings");
+
+				instance = LoadAsset();
+
 				if (instance == null)
 				{
+					Debug.LogWarning("Effekseer Settings is not found. Please Create Effekseer Settings with Create->Effekseer->Effekseer Settings.");
 					instance = CreateInstance<EffekseerSettings>();
 				}
+
 				return instance;
 			}
+		}
+
+		static EffekseerSettings LoadAsset()
+		{
+#if UNITY_EDITOR
+			var asset = PlayerSettings.GetPreloadedAssets().OfType<EffekseerSettings>().FirstOrDefault();
+
+			if (asset != null)
+			{
+				return asset;
+			}
+#endif
+			return Resources.Load<EffekseerSettings>("EffekseerSettings");
+		}
+
+		void OnEnable()
+		{
+			instance = this;
 		}
 
 #if UNITY_EDITOR
@@ -211,85 +223,50 @@ namespace Effekseer
 #endif
 		public static void EditOrCreateAsset()
 		{
-			var asset = AssignAssets();
+			var asset = LoadAsset();
+
+			if (asset == null)
+			{
+				asset = CreateAssetInternal();
+			}
+
+			instance = asset;
+
+			if (asset == null)
+			{
+				return;
+			}
+
 			EditorGUIUtility.PingObject(asset);
 			Selection.activeObject = asset;
 		}
 
-		public static EffekseerSettings AssignAssets()
+		[UnityEditor.MenuItem("Assets/Create/Effekseer/Effekseer Settings")]
+		public static void CreateAsset()
 		{
-			var asset = Resources.Load<EffekseerSettings>("EffekseerSettings");
+			CreateAssetInternal();
+		}
 
-			if (asset == null)
+		static EffekseerSettings CreateAssetInternal()
+		{
+			var path = EditorUtility.SaveFilePanelInProject(
+				"Save EffekseerSettings",
+				"EffekseerSettings",
+				"asset",
+				string.Empty);
+
+			if (string.IsNullOrEmpty(path))
 			{
-				const string baseDir = "Assets";
-				const string assetDir = baseDir + "/Effekseer";
-				const string materialDir = assetDir + "/Materials";
-				const string resourcesDir = assetDir + "/Resources";
-				const string assetPath = resourcesDir + "/EffekseerSettings.asset";
-
-				if (!AssetDatabase.IsValidFolder(assetDir))
-				{
-					AssetDatabase.CreateFolder(baseDir, "Effekseer");
-				}
-
-				if (!AssetDatabase.IsValidFolder(resourcesDir))
-				{
-					AssetDatabase.CreateFolder(assetDir, "Resources");
-				}
-
-				asset = CreateInstance<EffekseerSettings>();
-				asset.texture2DArrayBlitMaterial = AssetDatabase.LoadAssetAtPath<Shader>(materialDir + "/Texture2DArrayBlitShader.shader");
-				asset.texture2DBlitMaterial = AssetDatabase.LoadAssetAtPath<Shader>(materialDir + "/Texture2DBlitShader.shader");
-				asset.fakeMaterial = AssetDatabase.LoadAssetAtPath<Shader>(materialDir + "/FakeShader.shader");
-				asset.grabDepthShader = AssetDatabase.LoadAssetAtPath<Shader>(materialDir + "/GrabDepthShader.shader");
-				asset.fixedShader = AssetDatabase.LoadAssetAtPath<Shader>(materialDir + "/EffekseerFixedShader.shader");
-
-				AssetDatabase.CreateAsset(asset, assetPath);
-				AssetDatabase.Refresh();
+				return null;
 			}
-			else
-			{
-				string assetDir = EffekseerEffectAsset.NormalizeAssetPath(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(AssetDatabase.GetAssetPath(asset)), ".."));
-				string materialDir = assetDir + "/Materials";
 
-				bool dirtied = false;
-				if (asset.fakeMaterial == null)
-				{
-					asset.fakeMaterial = AssetDatabase.LoadAssetAtPath<Shader>(materialDir + "/FakeShader.shader");
+			var asset = CreateInstance<EffekseerSettings>();
+			AssetDatabase.CreateAsset(asset, path);
 
-					if (asset.fakeMaterial != null)
-					{
-						dirtied = true;
-					}
-				}
-
-				if (asset.grabDepthShader == null)
-				{
-					asset.grabDepthShader = AssetDatabase.LoadAssetAtPath<Shader>(materialDir + "/GrabDepthShader.shader");
-
-					if (asset.grabDepthShader != null)
-					{
-						dirtied = true;
-					}
-				}
-
-				if (asset.fixedShader == null)
-				{
-					asset.fixedShader = AssetDatabase.LoadAssetAtPath<Shader>(materialDir + "/EffekseerFixedShader.shader");
-
-					if (asset.fixedShader != null)
-					{
-						dirtied = true;
-					}
-				}
-
-				if (dirtied)
-				{
-					EditorUtility.SetDirty(asset);
-					AssetDatabase.Refresh();
-				}
-			}
+			var preloadedAssets = PlayerSettings.GetPreloadedAssets().ToList();
+			preloadedAssets.RemoveAll(x => x is EffekseerSettings);
+			preloadedAssets.Add(asset);
+			PlayerSettings.SetPreloadedAssets(preloadedAssets.ToArray());
 
 			return asset;
 		}
