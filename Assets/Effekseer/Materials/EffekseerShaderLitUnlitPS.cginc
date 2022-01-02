@@ -65,11 +65,14 @@ struct PS_Input
 };
 
 #include "EffekseerShaderSoftParticlePS.cginc"
+#include "EffekseerShader_Linear_sRGB.cginc"
 
 float4 frag(const PS_Input Input)
 	: SV_Target
 {
-	float4 Output = _colorTex.Sample(sampler_colorTex, Input.UV) * Input.Color;
+	bool convColorSpace = convertColorSpace != 0.0f;
+
+	float4 Output = ConvertFromSRGBTexture(_colorTex.Sample(sampler_colorTex, Input.UV), convColorSpace) * Input.Color;
 
 #if ENABLE_LIGHTING
 	half3 texNormal = (_normalTex.Sample(sampler_normalTex, Input.UV).xyz - 0.5) * 2.0;
@@ -106,9 +109,8 @@ float4 frag(const PS_Input Input)
 	}
 #endif
 
-
 	if (Output.a == 0.0)
 		discard;
 
-	return Output;
+	return ConvertToScreen(Output, convColorSpace);
 }
