@@ -27,19 +27,6 @@ public class UrpBlitter : IEffekseerBlitter
 		cmd.SetGlobalTexture(sourceTex, source);
 		cmd.DrawProcedural(Matrix4x4.identity, blitMaterial, 0, MeshTopology.Quads, 4);
 	}
-
-	public void Blit(CommandBuffer cmd, RenderTargetIdentifier source, RenderTargetIdentifier dest, Material material)
-	{
-		CoreUtils.SetRenderTarget(
-			cmd,
-			dest,
-			RenderBufferLoadAction.Load,
-			RenderBufferStoreAction.Store,
-			ClearFlag.None,
-			Color.black);
-		cmd.SetGlobalTexture(sourceTex, source);
-		cmd.DrawProcedural(Matrix4x4.identity, material, 0, MeshTopology.Quads, 4);
-	}
 }
 
 public class EffekseerURPRenderPassFeature : ScriptableRendererFeature

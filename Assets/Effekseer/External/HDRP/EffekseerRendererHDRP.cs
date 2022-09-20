@@ -1,8 +1,8 @@
 ﻿#if EFFEKSEER_HDRP_SUPPORT
 
+using Effekseer.Internal;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.HighDefinition;
-using Effekseer.Internal;
 
 namespace Effekseer
 {
