@@ -301,7 +301,7 @@ namespace Effekseer
 				Debug.LogError("[Effekseer] EffekseerSystem instance is already found.");
 			}
 
-#if (UNITY_WEBGL || UNITY_IOS || UNITY_SWITCH) && !UNITY_EDITOR
+#if (UNITY_WEBGL || UNITY_IOS || UNITY_SWITCH || UNITY_SWITCH2) && !UNITY_EDITOR
 			Plugin.RegisterPlugin();
 #endif
 
@@ -399,6 +399,9 @@ namespace Effekseer
 #endif
 #if UNITY_2017_4_OR_NEWER
 				case GraphicsDeviceType.Switch:
+#endif
+#if UNITY_6000_0_OR_NEWER
+				case GraphicsDeviceType.Switch2:
 #endif
 					reversedDepth = true;
 					break;
