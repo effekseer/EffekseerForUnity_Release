@@ -100,6 +100,9 @@ namespace Effekseer
 		public static extern void EffekseerUpdate(float deltaTime);
 
 		[DllImport(pluginName)]
+		public static extern IntPtr EffekseerGetUpdateStateFunc();
+
+		[DllImport(pluginName)]
 		public static extern IntPtr EffekseerGetRenderFunc(int renderId = 0);
 
 		[DllImport(pluginName)]
@@ -107,6 +110,9 @@ namespace Effekseer
 
 		[DllImport(pluginName)]
 		public static extern IntPtr EffekseerGetRenderBackFunc(int renderId = 0);
+
+		[DllImport(pluginName)]
+		public static extern void EffekseerUpdateState(int renderId = 0);
 
 		[DllImport(pluginName)]
 		public static extern void EffekseerRender(int renderId = 0);
@@ -261,6 +267,12 @@ namespace Effekseer
 
 		[DllImport(pluginName)]
 		public static extern void EffekseerSetDynamicInput(int handle, int index, float value);
+
+		[DllImport(pluginName)]
+		public static extern IntPtr Effekseer_Manager_GetName(int handle);
+
+		[DllImport(pluginName)]
+		public static extern int Effekseer_Manager_GetEffectHandles(int[] dst, int count);
 
 		public delegate int EffekseerGetUnityIdFromPath(IntPtr path);
 

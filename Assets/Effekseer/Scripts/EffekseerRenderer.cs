@@ -256,9 +256,7 @@ namespace Effekseer.Internal
 
 		void CleanUp();
 
-		CommandBuffer GetCameraCommandBuffer(Camera camera);
-
-		void Render(Camera camera, RenderTargetProperty renderTargetProperty, CommandBuffer targetCommandBuffer, bool isScriptable, IEffekseerBlitter blitter);
+		void Render(Camera camera, int additionalMask, RenderTargetProperty renderTargetProperty, CommandBuffer targetCommandBuffer, bool isScriptable, IEffekseerBlitter blitter);
 
 		void OnPostRender(Camera camera);
 	}
@@ -408,6 +406,7 @@ namespace Effekseer.Internal
 			if (renderTexture != null)
 			{
 				renderTexture.Release();
+				UnityEngine.Object.Destroy(renderTexture);
 				renderTexture = null;
 				ptr = IntPtr.Zero;
 			}
@@ -455,6 +454,7 @@ namespace Effekseer.Internal
 			if (renderTexture != null)
 			{
 				renderTexture.Release();
+				UnityEngine.Object.Destroy(renderTexture);
 				renderTexture = null;
 				ptr = IntPtr.Zero;
 			}

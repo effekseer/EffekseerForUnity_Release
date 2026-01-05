@@ -12,6 +12,8 @@ namespace Effekseer
 		Effekseer.Internal.RenderTargetProperty prop = new Internal.RenderTargetProperty();
 		private IEffekseerBlitter blitter = new StandardBlitter();
 
+		public UnityEngine.LayerMask LayerMask = ~0;
+
 		public EffekseerRenderPassHDRP()
 		{
 
@@ -38,7 +40,7 @@ namespace Effekseer
 			prop.colorTargetDescriptor = new UnityEngine.RenderTextureDescriptor(hdCamera.actualWidth, hdCamera.actualHeight, colorBuffer.rt.format, 0, colorBuffer.rt.mipmapCount);
 			prop.colorTargetDescriptor.msaaSamples = hdCamera.msaaSamples == MSAASamples.None ? 1 : 2;
 			prop.isRequiredToChangeViewport = true;
-			EffekseerSystem.Instance.renderer.Render(hdCamera.camera, prop, cmd, true, blitter);
+			EffekseerSystem.Instance.renderer.Render(hdCamera.camera, LayerMask.value, prop, cmd, true, blitter);
 		}
 
 #if UNITY_6000_0_OR_NEWER

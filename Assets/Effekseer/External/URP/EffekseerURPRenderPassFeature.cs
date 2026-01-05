@@ -46,6 +46,8 @@ public class UrpBlitter : IEffekseerBlitter
 
 public class EffekseerURPRenderPassFeature : ScriptableRendererFeature
 {
+	public UnityEngine.LayerMask LayerMask = ~0;
+
 	class EffekseerRenderPassURP : UnityEngine.Rendering.Universal.ScriptableRenderPass
 	{
 #if !EFFEKSEER_URP_DEPTHTARGET_FIX
@@ -54,10 +56,13 @@ public class EffekseerURPRenderPassFeature : ScriptableRendererFeature
 #endif
 		Effekseer.Internal.RenderTargetProperty prop = new Effekseer.Internal.RenderTargetProperty();
 		private IEffekseerBlitter blitter = new UrpBlitter();
+		UnityEngine.LayerMask layerMask;
+		private const string RenderPassName = nameof(EffekseerRenderPassURP);
 
-		public EffekseerRenderPassURP(ScriptableRenderer renderer)
+		public EffekseerRenderPassURP(ScriptableRenderer renderer, UnityEngine.LayerMask layerMask)
 		{
 			this.renderPassEvent = UnityEngine.Rendering.Universal.RenderPassEvent.AfterRenderingTransparents;
+			this.layerMask = layerMask;
 		}
 
 		bool IsValidCameraDepthTarget(RenderTargetIdentifier cameraDepthTarget)
@@ -96,7 +101,7 @@ public class EffekseerURPRenderPassFeature : ScriptableRendererFeature
 			prop.colorTargetIdentifier = cameraColorTarget;
 			this.renderPassEvent = UnityEngine.Rendering.Universal.RenderPassEvent.AfterRenderingTransparents;
 
-			if(isValidDepth)
+			if (isValidDepth)
 			{
 				this.cameraDepthTarget = cameraDepthTarget;
 				prop.depthTargetIdentifier = cameraDepthTarget;
@@ -147,14 +152,12 @@ public class EffekseerURPRenderPassFeature : ScriptableRendererFeature
 #if EFFEKSEER_URP_XRRENDERING
 			prop.xrRendering = renderingData.cameraData.xrRendering;
 #endif
-			prop.canGrabDepth = renderingData.cameraData.requiresDepthTexture;
-			Effekseer.EffekseerSystem.Instance.renderer.Render(renderingData.cameraData.camera, prop, null, true, blitter);
-			var commandBuffer = Effekseer.EffekseerSystem.Instance.renderer.GetCameraCommandBuffer(renderingData.cameraData.camera);
 
-			if (commandBuffer != null)
-			{
-				context.ExecuteCommandBuffer(commandBuffer);
-			}
+			var cmd = CommandBufferPool.Get(RenderPassName);
+			prop.canGrabDepth = renderingData.cameraData.requiresDepthTexture;
+			Effekseer.EffekseerSystem.Instance.renderer.Render(renderingData.cameraData.camera, layerMask.value, prop, cmd, true, blitter);
+			context.ExecuteCommandBuffer(cmd);
+			CommandBufferPool.Release(cmd);
 		}
 
 #if UNITY_6000_0_OR_NEWER
@@ -189,7 +192,9 @@ public class EffekseerURPRenderPassFeature : ScriptableRendererFeature
 				//passData.prop.colorTargetIdentifier = resourceData.activeColorTexture;
 				//passData.prop.depthTargetIdentifier = resourceData.activeDepthTexture;
 				passData.colorTexture = resourceData.activeColorTexture;
+				builder.UseTexture(passData.colorTexture, AccessFlags.ReadWrite);
 				passData.depthTexture = resourceData.activeDepthTexture;
+				builder.UseTexture(passData.depthTexture, AccessFlags.ReadWrite);
 				passData.prop.colorTargetDescriptor = cameraData.cameraTargetDescriptor;
 
 				// Linear and native renderer makes a result white.
@@ -250,14 +255,14 @@ public class EffekseerURPRenderPassFeature : ScriptableRendererFeature
 #if !EFFEKSEER_URP_DEPTHTARGET_FIX
 		if (m_ScriptablePass == null)
 		{
-			m_ScriptablePass = new EffekseerRenderPassURP(renderer);
+			m_ScriptablePass = new EffekseerRenderPassURP(renderer, LayerMask);
 		}
 
 		m_ScriptablePass.Setup(renderer.cameraColorTarget, renderer.cameraDepth);
 
 		renderer.EnqueuePass(m_ScriptablePass);
 #else
-		m_ScriptablePass = m_ScriptablePass ?? new EffekseerRenderPassURP(renderer);
+		m_ScriptablePass = m_ScriptablePass ?? new EffekseerRenderPassURP(renderer, LayerMask);
 		renderer.EnqueuePass(m_ScriptablePass);
 #endif
 	}
