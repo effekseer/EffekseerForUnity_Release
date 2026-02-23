@@ -152,7 +152,7 @@ namespace Effekseer.Internal
 				}
 
 				// restore
-				SetDefaultRenderTarget(cb, blitter);
+	            SetDefaultRenderTarget(cb, blitter);
 			}
 		}
 
@@ -197,7 +197,7 @@ namespace Effekseer.Internal
 			}
 
 			// restore
-			SetDefaultRenderTarget(cb, blitter);
+            SetDefaultRenderTarget(cb, blitter);
 			
 		}
 
