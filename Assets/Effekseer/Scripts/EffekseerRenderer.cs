@@ -79,7 +79,9 @@ namespace Effekseer.Internal
 		public RenderTargetIdentifier colorTargetIdentifier;
 		public RenderTargetIdentifier? depthTargetIdentifier;
 		public RenderTextureDescriptor colorTargetDescriptor;
-		public Rect Viewport;
+		public Vector2? ActualScreenSize;
+		public Rect? Viewport;
+		public Rect? SourceViewport;
 		public bool isRequiredToChangeViewport = false;
 		public RenderTexture colorTargetRenderTexture = null;
 		public RenderTexture depthTargetRenderTexture = null;
@@ -98,6 +100,29 @@ namespace Effekseer.Internal
 
 		public RenderTargetProperty()
 		{
+		}
+
+		void SetTemporaryRenderTextureViewport(CommandBuffer cb, RenderTexture renderTexture)
+		{
+			if (renderTexture != null)
+			{
+				cb.SetViewport(new Rect(0, 0, renderTexture.width, renderTexture.height));
+			}
+		}
+
+		Rect GetSourceViewport()
+		{
+			if (SourceViewport.HasValue)
+			{
+				return SourceViewport.Value;
+			}
+
+			if (Viewport.HasValue)
+			{
+				return Viewport.Value;
+			}
+
+			return new Rect();
 		}
 
 		internal void ApplyToCommandBuffer(CommandBuffer cb, DepthRenderTexture depthRenderTexture, IEffekseerBlitter blitter)
@@ -135,14 +160,18 @@ namespace Effekseer.Internal
 				}
 				else if (renderFeature == RenderFeature.HDRP)
 				{
+					var sourceViewport = GetSourceViewport();
+					var normalizedArea = new Vector4(
+						sourceViewport.width / depthTargetRenderTexture.width,
+						sourceViewport.height / depthTargetRenderTexture.height,
+						sourceViewport.x / depthTargetRenderTexture.width,
+						sourceViewport.y / depthTargetRenderTexture.height);
+
 					var m = AllocateBlitArrayMaterial();
 					m.SetTexture("_BackgroundTex", depthTargetRenderTexture);
-					m.SetVector("textureArea", new Vector4(
-						Viewport.width / depthTargetRenderTexture.width,
-						Viewport.height / depthTargetRenderTexture.height,
-						Viewport.x / depthTargetRenderTexture.width,
-						Viewport.y / depthTargetRenderTexture.height));
+					m.SetVector("textureArea", normalizedArea);
 					cb.SetRenderTarget(depthRenderTexture.renderTexture);
+					SetTemporaryRenderTextureViewport(cb, depthRenderTexture.renderTexture);
 					cb.ClearRenderTarget(true, true, new Color(0, 0, 0));
 					cb.Blit(null, depthRenderTexture.renderTexture, m);
 				}
@@ -152,14 +181,7 @@ namespace Effekseer.Internal
 				}
 
 				// restore
-				if (depthTargetIdentifier.HasValue)
-				{
-					blitter.SetRenderTarget(cb, colorTargetIdentifier, depthTargetIdentifier.Value, xrRendering);
-				}
-				else
-				{
-					blitter.SetRenderTarget(cb, colorTargetIdentifier, xrRendering);
-				}
+				SetDefaultRenderTarget(cb, blitter);
 			}
 		}
 
@@ -167,31 +189,34 @@ namespace Effekseer.Internal
 		{
 			if (isRequiredToChangeViewport)
 			{
+				var sourceViewport = GetSourceViewport();
+				var normalizedArea = new Vector4(
+						sourceViewport.width / colorTargetRenderTexture.width,
+						sourceViewport.height / colorTargetRenderTexture.height,
+						sourceViewport.x / colorTargetRenderTexture.width,
+						sourceViewport.y / colorTargetRenderTexture.height);
+
+				// Dynamic resolution changes the render viewport, but the source region for the
+				// background/depth copy still matches the camera's full viewport.
 				if (colorTargetRenderTexture.dimension == TextureDimension.Tex2DArray)
 				{
 					var m = AllocateBlitArrayMaterial();
 					m.SetTexture("_BackgroundTex", colorTargetRenderTexture);
-					m.SetVector("textureArea", new Vector4(
-						Viewport.width / colorTargetRenderTexture.width,
-						Viewport.height / colorTargetRenderTexture.height,
-						Viewport.x / colorTargetRenderTexture.width,
-						Viewport.y / colorTargetRenderTexture.height));
+					m.SetVector("textureArea", normalizedArea);
 					blitter.SetRenderTarget(cb, backgroundRenderTexture.renderTexture, xrRendering);
+					SetTemporaryRenderTextureViewport(cb, backgroundRenderTexture.renderTexture);
 					cb.ClearRenderTarget(true, true, new Color(0, 0, 0));
-					blitter.Blit(cb, colorTargetIdentifier, backgroundRenderTexture.renderTexture, m, xrRendering);
+					cb.Blit(null, backgroundRenderTexture.renderTexture, m);
 				}
 				else
 				{
 					var m = AllocateBlitMaterial();
 					m.SetTexture("_BackgroundTex", colorTargetRenderTexture);
-					m.SetVector("textureArea", new Vector4(
-						Viewport.width / colorTargetRenderTexture.width,
-						Viewport.height / colorTargetRenderTexture.height,
-						Viewport.x / colorTargetRenderTexture.width,
-						Viewport.y / colorTargetRenderTexture.height));
+					m.SetVector("textureArea", normalizedArea);
 					blitter.SetRenderTarget(cb, backgroundRenderTexture.renderTexture, xrRendering);
+					SetTemporaryRenderTextureViewport(cb, backgroundRenderTexture.renderTexture);
 					cb.ClearRenderTarget(true, true, new Color(0, 0, 0));
-					blitter.Blit(cb, colorTargetIdentifier, backgroundRenderTexture.renderTexture, m, xrRendering);
+					cb.Blit(null, backgroundRenderTexture.renderTexture, m);
 				}
 			}
 			else if (isRequiredToCopyBackground)
@@ -204,9 +229,15 @@ namespace Effekseer.Internal
 			}
 
 			// restore
+			SetDefaultRenderTarget(cb, blitter);
+
+		}
+
+		internal void SetDefaultRenderTarget(CommandBuffer cb, IEffekseerBlitter blitter)
+		{
 			if (depthTargetIdentifier.HasValue)
 			{
-				blitter.SetRenderTarget(cb, colorTargetIdentifier, depthTargetIdentifier.Value, xrRendering);
+				blitter.SetRenderTarget(cb, colorTargetIdentifier, depthTargetIdentifier.Value, ActualScreenSize, xrRendering);
 			}
 			else
 			{
@@ -256,9 +287,7 @@ namespace Effekseer.Internal
 
 		void CleanUp();
 
-		CommandBuffer GetCameraCommandBuffer(Camera camera);
-
-		void Render(Camera camera, RenderTargetProperty renderTargetProperty, CommandBuffer targetCommandBuffer, bool isScriptable, IEffekseerBlitter blitter);
+		void Render(Camera camera, int additionalMask, RenderTargetProperty renderTargetProperty, CommandBuffer targetCommandBuffer, bool isScriptable, IEffekseerBlitter blitter);
 
 		void OnPostRender(Camera camera);
 	}
@@ -408,6 +437,7 @@ namespace Effekseer.Internal
 			if (renderTexture != null)
 			{
 				renderTexture.Release();
+				UnityEngine.Object.Destroy(renderTexture);
 				renderTexture = null;
 				ptr = IntPtr.Zero;
 			}
@@ -455,6 +485,7 @@ namespace Effekseer.Internal
 			if (renderTexture != null)
 			{
 				renderTexture.Release();
+				UnityEngine.Object.Destroy(renderTexture);
 				renderTexture = null;
 				ptr = IntPtr.Zero;
 			}

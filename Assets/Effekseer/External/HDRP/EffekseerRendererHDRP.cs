@@ -1,5 +1,6 @@
 ﻿#if EFFEKSEER_HDRP_SUPPORT
 
+using System;
 using Effekseer.Internal;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -7,14 +8,22 @@ using UnityEngine.Rendering.HighDefinition;
 
 namespace Effekseer
 {
+	[Serializable]
 	class EffekseerRenderPassHDRP : UnityEngine.Rendering.HighDefinition.CustomPass
 	{
 		Effekseer.Internal.RenderTargetProperty prop = new Internal.RenderTargetProperty();
 		private IEffekseerBlitter blitter = new StandardBlitter();
 
+		public UnityEngine.LayerMask LayerMask = ~0;
+
 		public EffekseerRenderPassHDRP()
 		{
-
+#if UNITY_6000_0_OR_NEWER
+			// Effekseer rebinds the camera depth explicitly during execution, so the
+			// HDRP custom pass itself doesn't need to declare Camera depth here.
+			targetColorBuffer = TargetBuffer.Camera;
+			targetDepthBuffer = TargetBuffer.None;
+#endif
 		}
 
 		protected override void Setup(ScriptableRenderContext renderContext, CommandBuffer cmd)
@@ -23,9 +32,19 @@ namespace Effekseer
 			base.Setup(renderContext, cmd);
 		}
 
-		void Execute(RTHandle colorBuffer, RTHandle depthBuffer, CommandBuffer cmd, HDCamera hdCamera)
+		bool TryPrepareRender(RTHandle colorBuffer, RTHandle depthBuffer, HDCamera hdCamera)
 		{
-			if (EffekseerSystem.Instance == null) return;
+			if (hdCamera == null || hdCamera.camera == null || colorBuffer == null || depthBuffer == null)
+			{
+				return false;
+			}
+
+			var colorRT = colorBuffer.rt;
+			if (colorRT == null)
+			{
+				return false;
+			}
+
 			prop.colorTargetIdentifier = new RenderTargetIdentifier(colorBuffer);
 			prop.depthTargetIdentifier = new RenderTargetIdentifier(depthBuffer);
 			prop.colorTargetRenderTexture = (UnityEngine.RenderTexture)colorBuffer;
@@ -33,25 +52,49 @@ namespace Effekseer
 			prop.renderFeature = Effekseer.Internal.RenderFeature.HDRP;
 
 			// TODO : It needs to support VR and override
-			prop.Viewport = hdCamera.camera.pixelRect;
+			prop.ActualScreenSize = new Vector2Int(hdCamera.actualWidth, hdCamera.actualHeight);
+			prop.SourceViewport = hdCamera.camera.pixelRect;
+#if UNITY_6000_0_OR_NEWER
+			// HDRP keeps the full-resolution RT allocated and shrinks the active viewport when
+			// dynamic resolution is enabled, so keep the render viewport and the source
+			// sampling viewport separate.
+			prop.Viewport = new Rect(0, 0, hdCamera.actualWidth, hdCamera.actualHeight);
+#else
+			prop.Viewport = new Rect(0, 0, hdCamera.camera.pixelRect.width, hdCamera.camera.pixelRect.height);
+#endif
 
-			prop.colorTargetDescriptor = new UnityEngine.RenderTextureDescriptor(hdCamera.actualWidth, hdCamera.actualHeight, colorBuffer.rt.format, 0, colorBuffer.rt.mipmapCount);
+			prop.colorTargetDescriptor = new UnityEngine.RenderTextureDescriptor(colorRT.width, colorRT.height, colorRT.format, 0, colorRT.mipmapCount);
 			prop.colorTargetDescriptor.msaaSamples = hdCamera.msaaSamples == MSAASamples.None ? 1 : 2;
 			prop.isRequiredToChangeViewport = true;
-			EffekseerSystem.Instance.renderer.Render(hdCamera.camera, prop, cmd, true, blitter);
+			return true;
+		}
+
+		void Execute(RTHandle colorBuffer, RTHandle depthBuffer, CommandBuffer cmd, HDCamera hdCamera)
+		{
+			if (EffekseerSystem.Instance == null || cmd == null)
+			{
+				return;
+			}
+
+			if (!TryPrepareRender(colorBuffer, depthBuffer, hdCamera))
+			{
+				return;
+			}
+
+			EffekseerSystem.Instance.renderer.Render(hdCamera.camera, LayerMask.value, prop, cmd, true, blitter);
 		}
 
 #if UNITY_6000_0_OR_NEWER
 		protected override void Execute(CustomPassContext ctx)
 		{
+			// Unity 6 HDRP executes custom passes through RenderGraph internally.
+			// Keep the RenderGraph entry point isolated from the legacy path so future
+			// HDRP changes stay localized in this file.
 			Execute(ctx.cameraColorBuffer, ctx.cameraDepthBuffer, ctx.cmd, ctx.hdCamera);
-			base.Execute(ctx);
 		}
 #else
 		protected override void Execute(ScriptableRenderContext renderContext, CommandBuffer cmd, HDCamera hdCamera, CullingResults cullingResult)
 		{
-			if (EffekseerSystem.Instance == null) return;
-
 			RTHandle colorBuffer;
 			RTHandle depthBuffer;
 			GetCameraBuffers(out colorBuffer, out depthBuffer);
