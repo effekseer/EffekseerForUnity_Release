@@ -1,0 +1,5 @@
+.gitattributes eol=lf
+*.bat eol=crlf
+*.sh eol=lf
+*.md eol=lf
+*.cs eol=lf
