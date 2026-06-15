@@ -195,7 +195,7 @@ public class EffekseerURPRenderPassFeature : ScriptableRendererFeature
 				passData.depthTexture = resourceData.activeDepthTexture;
 				if (passData.depthTexture.IsValid())
 				{
-					builder.UseTexture(passData.depthTexture, AccessFlags.ReadWrite);
+					builder.UseTexture(passData.depthTexture, AccessFlags.Write);
 				}
 				PrepareRenderTargetProperty(passData.prop, cameraData.cameraTargetDescriptor, cameraData.requiresDepthTexture, xrRendering);
 
