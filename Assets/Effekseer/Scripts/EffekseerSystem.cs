@@ -77,7 +77,7 @@ namespace Effekseer
 			}
 
 			IntPtr nativeEffect;
-			if (Instance.nativeEffects.TryGetValue(effectAsset.GetInstanceID(), out nativeEffect))
+			if (Instance.nativeEffects.TryGetValue(GetUnityObjectId(effectAsset), out nativeEffect))
 			{
 				int handle = Plugin.EffekseerPlayEffect(nativeEffect, ref param);
 				return new EffekseerHandle(handle);
@@ -161,6 +161,17 @@ namespace Effekseer
 		private Dictionary<int, IntPtr> nativeEffects = new Dictionary<int, IntPtr>();
 		private Dictionary<int, IntPtr> nativeResourceLoadedEffects = new Dictionary<int, IntPtr>();
 
+		// Unity 6.5 replaces the int-based InstanceID API with EntityId. The native
+		// plugin callback ABI still uses int, so use EntityId's stable hash there.
+		private static int GetUnityObjectId(UnityEngine.Object obj)
+		{
+#if UNITY_6000_5_OR_NEWER
+			return obj.GetEntityId().GetHashCode();
+#else
+			return obj.GetInstanceID();
+#endif
+		}
+
 #if UNITY_EDITOR
 		// For hot reloading
 		[SerializeField] private List<int> nativeEffectsKeys = new List<int>();
@@ -171,6 +182,30 @@ namespace Effekseer
 		private EffekseerEffectAsset effectAssetInLoading;
 
 		internal Effekseer.EffekseerRendererType RendererType { get; private set; }
+
+		/// <summary>
+		/// Whether the current Unity renderer configuration can run in a URP raster pass.
+		/// </summary>
+		public bool CanUseURPRasterPass
+		{
+			get
+			{
+				return !EffekseerRendererUtils.IsDistortionEnabled &&
+					!EffekseerRendererUtils.IsDepthEnabled;
+			}
+		}
+
+		/// <summary>
+		/// Whether the URP raster pass can be used for XR cameras.
+		/// The native renderer is not allowed because it has not been tested in XR.
+		/// </summary>
+		public bool CanUseURPRasterPassInXR
+		{
+			get
+			{
+				return RendererType == EffekseerRendererType.Unity && CanUseURPRasterPass;
+			}
+		}
 
 		private static CachedTextureContainer cachedTextures = new CachedTextureContainer();
 
@@ -224,7 +259,7 @@ namespace Effekseer
 				if (effectAsset != null)
 				{
 					effectAssetInLoading = effectAsset;
-					int id = effectAsset.GetInstanceID();
+					int id = GetUnityObjectId(effectAsset);
 					IntPtr nativeEffect;
 					if (nativeEffects.TryGetValue(id, out nativeEffect))
 					{
@@ -241,7 +276,7 @@ namespace Effekseer
 			/*
 			foreach (var effectAsset in loadedEffects) {
 				effectAssetInLoading = effectAsset;
-				int id = effectAsset.GetInstanceID();
+				int id = GetUnityObjectId(effectAsset);
 				IntPtr nativeEffect;
 				if (nativeEffects.TryGetValue(id, out nativeEffect)) {
 					Plugin.EffekseerReloadResources(nativeEffect);
@@ -257,7 +292,7 @@ namespace Effekseer
 		public void LoadEffect(EffekseerEffectAsset effectAsset)
 		{
 			effectAssetInLoading = effectAsset;
-			int id = effectAsset.GetInstanceID();
+			int id = GetUnityObjectId(effectAsset);
 			IntPtr nativeEffect;
 			if (!nativeEffects.TryGetValue(id, out nativeEffect))
 			{
@@ -267,7 +302,7 @@ namespace Effekseer
 				nativeEffects.Add(id, nativeEffect);
 				nativeResourceLoadedEffects.Add(id, nativeEffect);
 				//loadedEffects.Add(effectAsset);
-				//effectAsset.GetInstanceID
+				// The effect is now registered by its Unity object ID.
 				Marshal.FreeCoTaskMem(namePtr);
 			}
 			else
@@ -285,7 +320,7 @@ namespace Effekseer
 
 		internal void ReleaseEffect(EffekseerEffectAsset effectAsset)
 		{
-			int id = effectAsset.GetInstanceID();
+			int id = GetUnityObjectId(effectAsset);
 			IntPtr nativeEffect;
 			if (nativeEffects.TryGetValue(id, out nativeEffect))
 			{
@@ -299,7 +334,7 @@ namespace Effekseer
 
 		internal float GetEffectMagnification(EffekseerEffectAsset effectAsset)
 		{
-			int id = effectAsset.GetInstanceID();
+			int id = GetUnityObjectId(effectAsset);
 			IntPtr nativeEffect;
 			if (nativeEffects.TryGetValue(id, out nativeEffect))
 			{
@@ -775,7 +810,7 @@ namespace Effekseer
 
 			if (texture != null)
 			{
-				return texture.GetInstanceID();
+				return GetUnityObjectId(texture);
 			}
 
 			return 0;
@@ -833,7 +868,7 @@ namespace Effekseer
 
 			if (model != null)
 			{
-				return model.GetInstanceID();
+				return GetUnityObjectId(model);
 			}
 
 			return 0;
@@ -929,7 +964,7 @@ namespace Effekseer
 
 			if (material != null)
 			{
-				return material.GetInstanceID();
+				return GetUnityObjectId(material);
 			}
 
 			return 0;
@@ -989,9 +1024,9 @@ namespace Effekseer
 			var pathstr = Marshal.PtrToStringUni(path);
 			var res = GetSoundFromPath(pathstr);
 
-			if (res != null)
+			if (res != null && res.clip != null)
 			{
-				return res.clip.GetInstanceID();
+				return GetUnityObjectId(res.clip);
 			}
 
 			return 0;
@@ -1035,7 +1070,7 @@ namespace Effekseer
 
 			if (res != null)
 			{
-				return res.asset.GetInstanceID();
+				return GetUnityObjectId(res.asset);
 			}
 
 			return 0;
